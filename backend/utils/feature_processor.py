@@ -73,77 +73,6 @@ AIRPORT_DATA = {
 }
 
 
-EXPECTED_COLUMNS = [
-    "origin_delay_rate",
-    "departure_month",
-    "valid_aircraft_connection",
-    "origin_past_flights",
-    "aircraft_delay_rate",
-    "is_weekend",
-    "buffer_ratio",
-    "airline_delay_rate",
-    "ORIGIN_AIRPORT",
-    "departure_hour_cos",
-    "origin_vs_airline_delay_rate",
-    "departure_hour_sin",
-    "departure_day_of_week",
-    "airline_avg_departure_delay",
-    "scheduled_speed_proxy",
-    "destination_latitude",
-    "TAIL_NUMBER",
-    "SCHEDULED_TIME",
-    "airline_history_strength",
-    "day_of_week_cos",
-    "aircraft_cumulative_delay_today",
-    "time_since_previous_flight_min",
-    "departure_hour",
-    "origin_history_strength",
-    "departure_minute",
-    "origin_longitude",
-    "propagation_pressure",
-    "route_past_flights",
-    "day_of_week_sin",
-    "departure_day_of_year",
-    "origin_state",
-    "same_state",
-    "is_first_flight_of_day",
-    "destination_vs_airline_delay_rate",
-    "tight_turnaround",
-    "route_avg_departure_delay",
-    "AIRLINE_NAME",
-    "previous_flight_delayed",
-    "airline_past_flights",
-    "turnaround_stress_min",
-    "DESTINATION_AIRPORT",
-    "departure_week",
-    "ROUTE",
-    "distance_per_scheduled_min",
-    "destination_history_strength",
-    "previous_flight_departure_delay",
-    "route_history_strength",
-    "route_vs_airline_delay_rate",
-    "destination_past_flights",
-    "previous_delay_magnitude",
-    "destination_delay_rate",
-    "destination_state",
-    "destination_longitude",
-    "remaining_turnaround_min",
-    "aircraft_past_flights",
-    "aircraft_avg_departure_delay",
-    "route_delay_rate",
-    "origin_avg_departure_delay",
-    "previous_flight_arrival_delay",
-    "departure_day",
-    "FLIGHT_NUMBER",
-    "AIRLINE",
-    "propagation_risk",
-    "origin_latitude",
-    "route_geographic_distance_km",
-    "destination_avg_departure_delay",
-    "DISTANCE"
-]
-
-
 def time_to_minutes(value):
     value = int(value)
     hours = value // 100
@@ -196,10 +125,6 @@ def build_features(data):
         data["scheduled_dep_time"]
     )
 
-    actual_departure = time_to_minutes(
-        data["dep_time"]
-    )
-
     scheduled_arrival = time_to_minutes(
         data["scheduled_arrival_time"]
     )
@@ -219,6 +144,8 @@ def build_features(data):
     departure_day_of_year = departure_datetime.timetuple().tm_yday
     departure_week = departure_datetime.isocalendar().week
 
+    # Scheduled flight duration.
+    # This uses only scheduled times and does NOT use actual departure.
     scheduled_time = scheduled_arrival - scheduled_departure
 
     if scheduled_time <= 0:
@@ -233,11 +160,6 @@ def build_features(data):
     )
 
     scheduled_speed_proxy = distance_per_scheduled_min * 60
-
-    actual_delay = actual_departure - scheduled_departure
-
-    if actual_delay < -720:
-        actual_delay += 1440
 
     buffer_ratio = (
         scheduled_time / max(distance, 1.0)
@@ -263,24 +185,26 @@ def build_features(data):
         scheduled_time < 90
     )
 
+    # No actual departure information is available.
+    # Therefore these current-flight delay/propagation values
+    # must not be derived from actual departure.
+    #
+    # Keep the feature names because the existing HistGradientBoosting
+    # model expects the existing 68-feature schema.
+    previous_flight_departure_delay = 0.0
+    previous_flight_arrival_delay = 0.0
+    previous_delay_magnitude = 0.0
+    previous_flight_delayed = 0
+
+    scheduled_turnaround_min = 0.0
+    remaining_turnaround_min = 0.0
     turnaround_stress_min = max(
         0,
         90 - scheduled_time
     )
 
-    remaining_turnaround_min = max(
-        0,
-        scheduled_time - actual_delay
-    )
-
-    propagation_pressure = max(
-        0.0,
-        actual_delay / max(scheduled_time, 1)
-    )
-
-    propagation_risk = int(
-        actual_delay >= 15
-    )
+    propagation_pressure = 0.0
+    propagation_risk = 0
 
     historical_rate = 0.0
 
@@ -288,82 +212,186 @@ def build_features(data):
         "origin_delay_rate": historical_rate,
         "departure_month": month,
         "valid_aircraft_connection": 0,
-        "scheduled_turnaround_min":0.0,
+        "scheduled_turnaround_min": scheduled_turnaround_min,
         "origin_past_flights": 0,
         "aircraft_delay_rate": historical_rate,
         "is_weekend": is_weekend,
         "buffer_ratio": buffer_ratio,
         "airline_delay_rate": historical_rate,
+
         "ORIGIN_AIRPORT": origin,
+
         "departure_hour_cos": math.cos(
             2 * math.pi * departure_hour / 24
         ),
+
         "origin_vs_airline_delay_rate": 0.0,
+
         "departure_hour_sin": math.sin(
             2 * math.pi * departure_hour / 24
         ),
+
         "departure_day_of_week": day_of_week,
+
         "airline_avg_departure_delay": 0.0,
+
         "scheduled_speed_proxy": scheduled_speed_proxy,
+
         "destination_latitude": destination_data["lat"],
+
         "TAIL_NUMBER": "UNKNOWN",
+
         "SCHEDULED_TIME": scheduled_time,
+
         "airline_history_strength": 0.0,
+
         "day_of_week_cos": math.cos(
             2 * math.pi * day_of_week / 7
         ),
+
         "aircraft_cumulative_delay_today": 0.0,
+
         "time_since_previous_flight_min": 0.0,
+
         "departure_hour": departure_hour,
+
         "origin_history_strength": 0.0,
+
         "departure_minute": departure_minute,
+
         "origin_longitude": origin_data["lon"],
+
         "propagation_pressure": propagation_pressure,
+
         "route_past_flights": 0,
+
         "day_of_week_sin": math.sin(
             2 * math.pi * day_of_week / 7
         ),
+
         "departure_day_of_year": departure_day_of_year,
+
         "origin_state": origin_data["state"],
+
         "same_state": same_state,
+
         "is_first_flight_of_day": 1,
+
         "destination_vs_airline_delay_rate": 0.0,
+
         "tight_turnaround": tight_turnaround,
+
         "route_avg_departure_delay": 0.0,
+
         "AIRLINE_NAME": AIRLINE_NAMES.get(
             airline,
             airline
         ),
-        "previous_flight_delayed": 0,
+
+        "previous_flight_delayed": previous_flight_delayed,
+
         "airline_past_flights": 0,
+
         "turnaround_stress_min": turnaround_stress_min,
+
         "DESTINATION_AIRPORT": destination,
+
         "departure_week": departure_week,
+
         "ROUTE": route,
+
         "distance_per_scheduled_min": distance_per_scheduled_min,
+
         "destination_history_strength": 0.0,
-        "previous_flight_departure_delay": 0.0,
+
+        "previous_flight_departure_delay":
+            previous_flight_departure_delay,
+
         "route_history_strength": 0.0,
+
         "route_vs_airline_delay_rate": 0.0,
+
         "destination_past_flights": 0,
-        "previous_delay_magnitude": 0.0,
+
+        "previous_delay_magnitude":
+            previous_delay_magnitude,
+
         "destination_delay_rate": historical_rate,
+
         "destination_state": destination_data["state"],
+
         "destination_longitude": destination_data["lon"],
-        "remaining_turnaround_min": remaining_turnaround_min,
+
+        "remaining_turnaround_min":
+            remaining_turnaround_min,
+
         "aircraft_past_flights": 0,
+
         "aircraft_avg_departure_delay": 0.0,
+
         "route_delay_rate": historical_rate,
+
         "origin_avg_departure_delay": 0.0,
-        "previous_flight_arrival_delay": 0.0,
+
+        "previous_flight_arrival_delay":
+            previous_flight_arrival_delay,
+
         "departure_day": day,
+
         "FLIGHT_NUMBER": int(data["flight_number"]),
+
         "AIRLINE": airline,
+
         "propagation_risk": propagation_risk,
+
         "origin_latitude": origin_data["lat"],
+
         "route_geographic_distance_km": route_distance,
+
         "destination_avg_departure_delay": 0.0,
+
         "DISTANCE": distance
     }
 
     return features
+
+
+def _encode_categorical(value, column, preprocessing):
+    frequency_maps = preprocessing["frequency_maps"]
+    missing_key = preprocessing["missing_category_key"]
+    unknown_frequency = preprocessing["unknown_category_frequency"]
+
+    if value is None or value == "":
+        lookup_key = missing_key
+    else:
+        lookup_key = str(value)
+
+    column_map = frequency_maps.get(column, {})
+    return column_map.get(lookup_key, unknown_frequency)
+
+
+def prepare_model_input(features, preprocessing):
+    if preprocessing is None:
+        raise ValueError("Preprocessing artifact is not loaded")
+
+    feature_columns = preprocessing["feature_columns"]
+    categorical_columns = set(preprocessing["categorical_columns"])
+    feature_dtype = preprocessing.get("feature_dtype", "float32")
+
+    encoded_row = []
+
+    for column in feature_columns:
+        raw_value = features.get(column)
+
+        if column in categorical_columns:
+            encoded_row.append(
+                _encode_categorical(raw_value, column, preprocessing)
+            )
+        elif raw_value is None:
+            encoded_row.append(0.0)
+        else:
+            encoded_row.append(float(raw_value))
+
+    import numpy as np
+
+    return np.array([encoded_row], dtype=feature_dtype)

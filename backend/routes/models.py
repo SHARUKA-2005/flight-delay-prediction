@@ -1,20 +1,15 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
-from models.model_loader import model_loader
+from services.metrics_service import get_model_metrics
 
 router = APIRouter(prefix="/models", tags=["Models"])
 
 
 @router.get("")
 def get_models():
-    metrics = model_loader.metrics
-
-    if metrics is None:
-        return {
-            "models": [],
-            "message": "Model metrics are not available"
-        }
-
-    return {
-        "models": metrics
-    }
+    try:
+        return get_model_metrics()
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e

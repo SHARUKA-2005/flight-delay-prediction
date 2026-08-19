@@ -46,7 +46,6 @@ const initialState = {
   day_of_month: 15,
   day_of_week: 3,
   scheduled_dep_time: intToTimeString(1800),
-  dep_time: intToTimeString(1830),
   scheduled_arrival_time: intToTimeString(2100),
   distance: 850
 }
@@ -74,11 +73,11 @@ export default function FlightForm({ onSubmit, submitting }) {
 
   function handleSubmit(event) {
     event.preventDefault()
+
     const payload = {
       month: Number(form.month),
       day_of_month: Number(form.day_of_month),
       day_of_week: Number(form.day_of_week),
-      dep_time: timeStringToInt(form.dep_time),
       scheduled_dep_time: timeStringToInt(form.scheduled_dep_time),
       scheduled_arrival_time: timeStringToInt(form.scheduled_arrival_time),
       flight_number: Number(form.flight_number),
@@ -87,6 +86,7 @@ export default function FlightForm({ onSubmit, submitting }) {
       destination: form.destination,
       airline: form.airline
     }
+
     onSubmit(payload)
   }
 
@@ -100,7 +100,11 @@ export default function FlightForm({ onSubmit, submitting }) {
       <div className="form-grid">
         <div className="field">
           <label htmlFor="airline">Airline</label>
-          <select id="airline" value={form.airline} onChange={(event) => updateField('airline', event.target.value)}>
+          <select
+            id="airline"
+            value={form.airline}
+            onChange={(event) => updateField('airline', event.target.value)}
+          >
             {AIRLINES.map((airline) => (
               <option key={airline.code} value={airline.code}>
                 {airline.code} — {airline.name}
@@ -147,7 +151,11 @@ export default function FlightForm({ onSubmit, submitting }) {
 
         <div className="field">
           <label htmlFor="month">Month</label>
-          <select id="month" value={form.month} onChange={(event) => updateField('month', event.target.value)}>
+          <select
+            id="month"
+            value={form.month}
+            onChange={(event) => updateField('month', event.target.value)}
+          >
             {MONTHS.map((name, index) => (
               <option key={name} value={index + 1}>
                 {name}
@@ -202,18 +210,9 @@ export default function FlightForm({ onSubmit, submitting }) {
             id="scheduled_dep_time"
             type="time"
             value={form.scheduled_dep_time}
-            onChange={(event) => updateField('scheduled_dep_time', event.target.value)}
-            required
-          />
-        </div>
-
-        <div className="field">
-          <label htmlFor="dep_time">Actual Departure</label>
-          <input
-            id="dep_time"
-            type="time"
-            value={form.dep_time}
-            onChange={(event) => updateField('dep_time', event.target.value)}
+            onChange={(event) =>
+              updateField('scheduled_dep_time', event.target.value)
+            }
             required
           />
         </div>
@@ -224,14 +223,20 @@ export default function FlightForm({ onSubmit, submitting }) {
             id="scheduled_arrival_time"
             type="time"
             value={form.scheduled_arrival_time}
-            onChange={(event) => updateField('scheduled_arrival_time', event.target.value)}
+            onChange={(event) =>
+              updateField('scheduled_arrival_time', event.target.value)
+            }
             required
           />
         </div>
       </div>
 
       <div className="form-footer">
-        <button type="submit" className="btn btn-primary" disabled={submitting}>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={submitting}
+        >
           {submitting ? 'Predicting…' : 'Predict Delay →'}
         </button>
       </div>

@@ -1,43 +1,30 @@
-import pandas as pd
-
 from models.model_loader import model_loader
-from utils.feature_processor import build_features
+from utils.feature_processor import build_features, prepare_model_input
 
 
 def predict(data):
-    if model_loader.model is None:
-        raise RuntimeError("Prediction model is not loaded")
-
-    features = build_features(data)
-
-    dataframe = pd.DataFrame([features])
-
-    expected_columns = list(
-        model_loader.model.named_steps["preprocessor"]
-        .feature_names_in_
-    )
-    
-    print("MODEL EXPECTED FEATURES:")
-    print(expected_columns)
-
-    missing_columns = set(expected_columns) - set(dataframe.columns)
-
-    if missing_columns:
-        raise ValueError(
-            f"Missing required features: {sorted(missing_columns)}"
+    if not model_loader.is_ready:
+        raise RuntimeError(
+            model_loader.load_error or "Prediction model is not loaded"
         )
 
-    dataframe = dataframe[expected_columns]
-
-    prediction = model_loader.model.predict(dataframe)[0]
+    features = build_features(data)
+    model_input = prepare_model_input(features, model_loader.preprocessing)
 
     if hasattr(model_loader.model, "predict_proba"):
         probability = float(
-            model_loader.model.predict_proba(dataframe)[0][1]
+            model_loader.model.predict_proba(model_input)[0][1]
+        )
+    elif hasattr(model_loader.model, "decision_function"):
+        probability = float(
+            model_loader.model.decision_function(model_input)[0]
         )
     else:
-        probability = float(
-            model_loader.model.decision_function(dataframe)[0]
-        )
+        raw_prediction = model_loader.model.predict(model_input)[0]
+        probability = float(raw_prediction)
+        return int(raw_prediction), probability
 
-    return int(prediction), probability
+    threshold = model_loader.threshold
+    prediction = int(probability >= threshold)
+
+    return prediction, probability

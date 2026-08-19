@@ -18,6 +18,9 @@ export default function Navbar() {
           <NavLink to="/performance" className={({ isActive }) => (isActive ? 'active' : '')}>
             PERFORMANCE
           </NavLink>
+          <NavLink to="/insights" className={({ isActive }) => (isActive ? 'active' : '')}>
+            INSIGHTS
+          </NavLink>
         </nav>
       </div>
     </header>

@@ -1,4 +1,5 @@
 import ProbabilityCard from './ProbabilityCard.jsx'
+import DelayAnalysis from './DelayAnalysis.jsx'
 
 function FlapNumber({ value }) {
   const text = `${value}%`
@@ -17,7 +18,9 @@ export default function PredictionResult({ result }) {
   if (!result) return null
 
   const delayed = result.prediction === 1
-  const percent = Math.round(result.probability * 100)
+  const delayPercent = result.insights
+    ? (result.insights.delay_probability * 100).toFixed(1)
+    : Math.round(result.probability * 100)
 
   return (
     <div>
@@ -28,9 +31,9 @@ export default function PredictionResult({ result }) {
         </div>
 
         <div className={`result-flap ${delayed ? 'delayed' : 'on-time'}`}>
-          <FlapNumber value={percent} />
+          <FlapNumber value={delayPercent} />
         </div>
-        <div className="result-label">Probability of Delay</div>
+        <div className="result-label">Predicted Delay Probability</div>
 
         <div className="result-model">
           Model used: <strong>{result.model}</strong>
@@ -40,6 +43,8 @@ export default function PredictionResult({ result }) {
       <div style={{ marginTop: '20px' }}>
         <ProbabilityCard probability={result.probability} delayed={delayed} />
       </div>
+
+      <DelayAnalysis insights={result.insights} status={result.status} />
     </div>
   )
 }
